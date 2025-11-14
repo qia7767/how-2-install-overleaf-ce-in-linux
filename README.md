@@ -2,8 +2,6 @@
 
  <p align="center"><strong><span style="color:#ff5722">Author: Ro</span></strong></p>
 
-[TOC]
-
 
 
 ##   教程说明

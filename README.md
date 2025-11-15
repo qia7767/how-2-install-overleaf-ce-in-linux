@@ -2,6 +2,8 @@
 
  <p align="center"><strong><span style="color:#ff5722">Author: Ro</span></strong></p>
 
+[TOC]
+
 ##   教程说明
 
 
@@ -711,17 +713,17 @@ node modules/server-ce-scripts/scripts/delete-user.mjs --email="user@example.com
 
 **所有可用的用户 / 管理脚本都位于容器内目录：**
 
- ```bash
+```bash
 /overleaf/services/web/modules/server-ce-scripts/scripts
- ```
+```
 可以进入该目录后使用 `ls` 查看所有脚本名称，并按需求调用对应的 `.js` / `.mjs` 脚本。
 
 - `change-compile-timeout.mjs`：调整 Overleaf 的 LaTeX 编译超时阈值。
 
 
-  ```bash
-  node modules/server-ce-scripts/scripts/change-compile-timeout.mjs --seconds 180
-  ```
+```bash
+node modules/server-ce-scripts/scripts/change-compile-timeout.mjs --seconds 180
+```
 
 - `create-user.mjs`：创建用户；支持管理员标志。
 

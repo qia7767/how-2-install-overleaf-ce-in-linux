@@ -2,8 +2,6 @@
 
  <p align="center"><strong><span style="color:#ff5722">Author: Ro</span></strong></p>
 
-[TOC]
-
 ##   教程说明
 
 
@@ -347,7 +345,7 @@ docker pull redis:7-alpine
 - **sharelatex**
 
 >目的：从镜像站拉取  `sharelatex/sharelatex:latest`，随后本地 retag 为 `sharelatex/sharelatex:latest`。
->下面**A/B**任选其一执行。
+> 下面 **A/B**任选其一执行。
 
 ```bash
 # =============================
@@ -395,14 +393,14 @@ docker images |  grep -E 'sharelatex|mongo|redis'
 
 - **目录结构**
 
-  ```bash
+```bash
 ${HOME}/docker/overleaf/
 ├─ data/      # Overleaf 数据目录 (/var/lib/overleaf)
 ├─ db/        # MongoDB 数据 (/data/db)
 ├─ fonts/     # 系统字体，会挂到 /usr/share/fonts
 ├─ texlive/   # TeX Live 根目录，会挂到 /usr/local/texlive
 └─ redis/     # Redis 持久化 (/data) — 仅当启用 AOF/RDB 时才会产生文件
-  ```
+```
 
 - **一键创建**
 

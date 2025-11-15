@@ -726,12 +726,12 @@ node modules/server-ce-scripts/scripts/delete-user.mjs --email="user@example.com
 - `create-user.mjs`：创建用户；支持管理员标志。
 
 
-  ```bash
-  # 管理员
-  node modules/server-ce-scripts/scripts/create-user.mjs --admin --email "admin@example.com"
-  # 普通用户
-  node modules/server-ce-scripts/scripts/create-user.mjs --email "user@example.com"
-  ```
+```bash
+# 管理员
+node modules/server-ce-scripts/scripts/create-user.mjs --admin --email "admin@example.com"
+# 普通用户
+node modules/server-ce-scripts/scripts/create-user.mjs --email "user@example.com"
+```
 
 - `rename-tag.mjs`：重命名系统内“标签”（项目/文件的标记）。
 

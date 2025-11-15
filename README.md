@@ -2,27 +2,27 @@
 
  <p align="center"><strong><span style="color:#ff5722">Author: Ro</span></strong></p>
 
-
+[TOC]
 
 ##   教程说明
 
 
 ###  目标与读者定位
 
-  - **目标**：在一台 Linux 服务器上用 **Docker** 部署 **Overleaf CE**（含 MongoDB/Redis），并开启(临时)公网访问。
-  - **读者**：对 Linux 与 Docker 有基础认知的工程/科研用户；不要求深度运维经验。
+  - **目标**：在一台 Linux 服务器上用 **Docker** 部署 **Overleaf CE**，并开启临时公网访问。
+  - **读者**：对 Linux 有基础认知的用户。
 
 ### 文中符号与路径约定
 
-  - **根路径**：`${HOME}/docker/overleaf`（请确保当前用户的 `$HOME` 正确）
+  - **项目路径**：`${HOME}/docker/overleaf`（请确保当前用户的 `$HOME` 正确）
 
-  - **服务端口**（默认）：Overleaf 宿主端口 **7643/tcp** 暴露到容器 ** 80/tcp** 
+  - **服务端口**：Overleaf 宿主端口 **7643/tcp** 暴露到容器 **80/tcp** 
 
-  - **容器名**：`Overleaf`（应用）、`Overleaf-DB`（Mongo）、`Overleaf-REDIS`（Redis）
+  - **容器名**：`Overleaf`、`Overleaf-DB`（Mongo）、`Overleaf-REDIS`（Redis）
 
   - **Compose** 文件所在目录：`${HOME}/docker/overleaf`
 
-    > 注意：Docker Compose **不会自动展开 `~`**，请使用 `${HOME}`。
+> 注意：Docker Compose **不会自动展开 `~`**，请使用 `${HOME}`。
 
 ------
 
@@ -40,16 +40,6 @@
   docker version
   docker compose version
   ```
-
-### 资源建议
-
-  | 规模               | CPU     | 内存     | 磁盘（SSD） | 说明                   |
-  | ------------------ | ------- | -------- | ----------- | ---------------------- |
-  | 个人/小组（≤5人）  | 2 vCPU  | 4–8 GB   | ≥ 30 GB     | 含基本字体与常用宏包   |
-  | 课题组（10–30人）  | 4 vCPU  | 8–16 GB  | ≥ 100 GB    | 建议单独 SSD，备份分区 |
-  | 学院/企业（>30人） | 8 vCPU+ | 16–32 GB | ≥ 200 GB    | 建议外接对象存储或 NFS |
-
-  > **经验**：编译密集型（尤其 `scheme-full`）更吃 **CPU/IO**，字体库越大越吃 **磁盘** 与 **缓存**。
 
 ### 端口规划
 
@@ -91,42 +81,14 @@
 
 ### 持久化与关键目录
 
-  - **项目文件与上传**：Overleaf 数据卷（`/var/lib/overleaf`）
-  - **Mongo 数据**：`/data/db`
-  - **系统字体**：`/usr/share/fonts`（用于 XeTeX/LuaTeX 渲染）
-  - **TeX Live**：`/usr/local/texlive`（可挂载以持久化自定义宏包/镜像）
-  - **日志**：建议将 `/var/log/sharelatex` 或应用日志输出映射至宿主，便于审计与清理
+  - **项目文件与上传**：`/var/lib/overleaf`  存放 Overleaf 项目源码、历史版本以及用户上传的文件，是最核心的数据目录。
+  - **Mongo 数据**：`/data/db`  存放 MongoDB 的数据文件，记录项目元数据、用户信息等结构化数据。
+  - **系统字体**：`/usr/share/fonts`  提供 XeTeX / LuaTeX 渲染时可用的系统字体，可通过挂载方式加入额外字体。
+  - **TeX Live**：`/usr/local/texlive`  存放 TeX Live 程序与宏包。
 
-  > **原则**：所有“会变化/需保留”的内容都挂载到宿主机目录，避免容器重建导致数据丢失。
+  > **原则**：所有“会变化/需保留”的内容都应挂载到宿主机目录，避免容器重建导致数据丢失。
 
 ------
-
-## 目录结构与权限规划
-
-### 目录结构
-
-  ```bash
-  ${HOME}/docker/overleaf/
-  ├─ data/      # Overleaf 数据目录 (/var/lib/overleaf)
-  ├─ db/        # MongoDB 数据 (/data/db)
-  ├─ fonts/     # 系统字体，会挂到 /usr/share/fonts
-  ├─ texlive/   # TeX Live 根目录，会挂到 /usr/local/texlive
-  └─ redis/     # Redis 持久化 (/data) — 仅当启用 AOF/RDB 时才会产生文件
-  ```
-
- 一键创建：
-
-  ```bash
-  export OVERLEAF_ROOT="${HOME}/docker/overleaf"
-  mkdir -p "${OVERLEAF_ROOT}"/{data,db,fonts,texlive,redis}
-  ```
-
-**容器内运行用户** 通常不是 root，常见为 `uid=1000,gid=1000`。为避免写入失败，先设置宿主目录属主：
-
-```bash
-sudo chown -R 1000:1000 "${OVERLEAF_ROOT}"
-sudo chmod -R 775 "${OVERLEAF_ROOT}"
-```
 
 ## 安装 Docker（各发行版）
 
@@ -223,9 +185,7 @@ docker run --rm hello-world
 
 ```bash
 # 拉取
-docker pull overleaf/overleaf:latest
 docker pull mongo:6
-docker pull redis:7
 # 查看
 docker images
 # 改 tag
@@ -282,7 +242,13 @@ docker image prune -f             # 仅清理悬空镜像
 
 #### Compose
 
-在含 docker-compose.yml 的目录：
+如使用的是本教程的目录结构，配置文件位于：`${HOME}/docker/overleaf/docker-compose.yml`。请先进入该目录：
+
+```bash
+cd "${HOME}/docker/overleaf"
+```
+
+在包含 `docker-compose.yml` 的目录中：
 
 - **后台启动（或更新）所有服务容器**
 
@@ -290,13 +256,19 @@ docker image prune -f             # 仅清理悬空镜像
 docker compose up -d
 ```
 
-如果镜像不存在，会自动拉取；配置有变也会按新配置重建容器
+若镜像不存在，会自动从远程仓库拉取；
+
+若 `docker-compose.yml` 配置有变（端口、环境变量、卷等），会按新配置重建对应容器；
+
+`-d` 表示后台运行，不会占用当前终端。
 
 - **查看当前 compose 项目中各服务的运行状态、端口等**
 
 ```bash
 docker compose ps
 ```
+列出当前项目下所有服务容器的名称、状态以及端口映射，方便检查服务是否正常运行。
+
 - **持续查看所有服务的实时日志**
 
 ```bash
@@ -305,13 +277,45 @@ docker compose logs -f
 
 持续输出当前 compose 项目中所有服务的日志，方便排查问题；按 **Ctrl + C** 退出日志界面，容器本身不会停止运行。
 
+- **停止本项目的所有容器**
+
+```bash
+docker compose stop
+```
+
+停止当前 compose 项目中的所有运行中容器，但**不会删除容器与网络**；容器状态从「运行中」变为「已停止」，之后可通过 `docker compose start` 再次启动。
+
+- **启动本项目中已停止的容器**
+
+```bash
+docker compose start
+```
+
+启动当前 compose 项目中已存在、处于「已停止」状态的容器，不会新建容器、也不会应用对 `docker-compose.yml` 的新改动。
+
 - **停止并删除本项目的容器与网络**
 
 ```bash
 docker compose down
 ```
 
-停止当前 compose 项目中的所有容器，并删除对应网络（不删除镜像，也不删除挂载到宿主机的目录 / 卷）。
+停止当前 compose 项目中的所有容器，并**删除对应容器以及所属网络**（不删除镜像，也不删除挂载到宿主机的目录 / 卷）。
+
+- **重启本项目的所有服务容器**
+
+```bash
+docker compose restart
+```
+
+对当前 Compose 项目中所有服务执行「先停止再启动」；适用于服务出现异常、或修改了挂载目录内的配置文件后，需要通过重启使其生效的场景。
+
+> 注意：如果修改了 `docker-compose.yml` 本身，`start` / `restart` 不会应用新配置，建议使用：
+>
+> ```bash
+> docker compose up -d
+> ```
+>
+> Compose 会自动对比配置，只重建有变动的服务容器。
 
 - **手动从远程仓库拉取镜像（更新为最新版本）**
 
@@ -321,20 +325,14 @@ docker compose pull
 
 根据当前 `docker-compose.yml` 中声明的镜像名称与标签，从远程仓库拉取最新版镜像，适用于升级前先预拉镜像。
 
-- **重启本项目的所有服务容器**
-
-```bash
-docker compose restart
-```
-
 
 ## 拉取镜像
 
 ### 需要的镜像
 
-- `sharelatex/sharelatex:4.1.1`（应用）
-- `mongo:6.0`（数据库）
-- `redis:7-alpine`（缓存）
+- `sharelatex/sharelatex:latest`
+- `mongo:6.0`
+- `redis:7-alpine`
 
 ### 直接从官方仓库拉取（能通就用它）
 
@@ -348,8 +346,8 @@ docker pull redis:7-alpine
 
 - **sharelatex**
 
->目的：从镜像站拉取 **最新** 的 `sharelatex/sharelatex:latest`**，随后**本地 retag 为 `sharelatex/sharelatex:latest`**，以避免后续的容器不健康。
-> 说明：下面把 **A/B任选其一执行。
+>目的：从镜像站拉取  `sharelatex/sharelatex:latest`，随后本地 retag 为 `sharelatex/sharelatex:latest`。
+> 说明：下面把 **A/B**任选其一执行。
 
 ```bash
 # =============================
@@ -362,29 +360,29 @@ docker pull docker-0.unsee.tech/sharelatex/sharelatex:latest
 docker tag  docker-0.unsee.tech/sharelatex/sharelatex:latest  sharelatex/sharelatex:latest
 docker rmi  docker-0.unsee.tech/sharelatex/sharelatex:latest  #可选，删除旧镜像
 
-# --- B：hlmirror ---
+### --- B：hlmirror ---
 docker pull docker.hlmirror.com/sharelatex/sharelatex:latest 
 docker tag  docker.hlmirror.com/sharelatex/sharelatex:latest  sharelatex/sharelatex:latest 
 docker rmi  docker.hlmirror.com/sharelatex/sharelatex:latest  #可选，删除旧镜像
 ```
 
-> -  `docker-compose.yml` 里请保持：`image: sharelatex/sharelatex:latest`。
->- 若后续想更新到新的 latest，只需**重复上述流程**（拉最新 → 覆盖性 retag 到 `latest`），Compose 仍指向同一固定名，避免“无意升级”。
+>- `docker-compose.yml` 里请保持：`image: sharelatex/sharelatex:latest`。
+>- 若后续想更新到新的 latest，只需**重复上述流程**（拉最新 → 覆盖性 retag 到 `latest`），Compose 仍指向同一固定名。
 
 - **Mongo 与 Redis（DaoCloud 版）**
 
  ```bash
  # 下载mongo 6.0
- sudo docker pull docker.m.daocloud.io/library/mongo:6.0
- sudo docker tag  docker.m.daocloud.io/library/mongo:6.0  mongo:6.0
- sudo docker rmi  docker.m.daocloud.io/library/mongo:6.0  #可选，删除旧镜像
+ docker pull docker.m.daocloud.io/library/mongo:6.0
+ docker tag  docker.m.daocloud.io/library/mongo:6.0  mongo:6.0
+ docker rmi  docker.m.daocloud.io/library/mongo:6.0  #可选，删除旧镜像
  # 下载redis:7-alpine
- sudo docker pull docker.m.daocloud.io/library/redis:7-alpine
- sudo docker tag  docker.m.daocloud.io/library/redis:7-alpine  redis:7-alpine
- sudo docker rmi  docker.m.daocloud.io/library/redis:7-alpine  #可选，删除旧镜像
+ docker pull docker.m.daocloud.io/library/redis:7-alpine
+ docker tag  docker.m.daocloud.io/library/redis:7-alpine  redis:7-alpine
+ docker rmi  docker.m.daocloud.io/library/redis:7-alpine  #可选，删除旧镜像
  ```
 
-> - `rmi` 只是清理中间源镜像，节省磁盘；不影响已改名的本地镜像使用。
+>- `rmi` 只是清理中间源镜像，节省磁盘；不影响已改名的本地镜像使用。
 >- 改完标签后，Compose 里写 `mongo:6.0`、`redis:7(-alpine)` 就能离线复用。
 
 ### 验证镜像是否就绪
@@ -393,9 +391,20 @@ docker rmi  docker.hlmirror.com/sharelatex/sharelatex:latest  #可选，删除�
 docker images |  grep -E 'sharelatex|mongo|redis'
 ```
 
-## 创建overleaf目录与权限
+## 创建overleaf目录
 
-确保你挂载的路径**真实存在**且对容器可写：
+- **目录结构**
+
+  ```bash
+${HOME}/docker/overleaf/
+├─ data/      # Overleaf 数据目录 (/var/lib/overleaf)
+├─ db/        # MongoDB 数据 (/data/db)
+├─ fonts/     # 系统字体，会挂到 /usr/share/fonts
+├─ texlive/   # TeX Live 根目录，会挂到 /usr/local/texlive
+└─ redis/     # Redis 持久化 (/data) — 仅当启用 AOF/RDB 时才会产生文件
+  ```
+
+- **一键创建**
 
 ```bash
 # 1) 统一根目录
@@ -446,7 +455,7 @@ services:
   mongoinit:
     image: mongo:6.0                 # 本地镜像
     container_name: mongo-init
-    restart: "no"
+    restart: no
     depends_on:
       mongo:
         condition: service_healthy
@@ -529,7 +538,7 @@ EOF
 
 ```bash
 cd ${HOME}/docker/overleaf
-docker-compose -f docker-compose.yml up -d
+docker compose -f docker-compose.yml up -d
 # 或：docker compose up -d
 ```
 
@@ -679,20 +688,20 @@ cd /overleaf/services/web
 
  - **创建 / 升级管理员账号**
 
-> 为新的邮箱创建管理员，或将已有普通用户升级为管理员。
-
 ```bash
 node modules/server-ce-scripts/scripts/create-user --admin --email="admin@example.com"
 ```
 
- -  **创建普通用户**
+为新的邮箱创建管理员，或将已有普通用户升级为管理员。
 
-> 为新的邮箱创建普通用户，或将已有管理员调整为普通用户。
+ -  **创建普通用户**
 
 
 ```bash
 node modules/server-ce-scripts/scripts/create-user --email="user@example.com"
 ```
+
+为新的邮箱创建普通用户，或将已有管理员调整为普通用户。
 
  -  **删除用户（CLI）**
 
@@ -799,7 +808,7 @@ node modules/server-ce-scripts/scripts/migrate-user-emails.mjs \
 
 ------
 
-使用前后的小建议
+使用前后的小建议：
 
 - **先干跑/查看帮助**：`node <script> --help`；或 `sed -n '1,80p' <script>` 看头部注释与参数说明。
 - **备份优先**：涉及删除/迁移前，先导出目标用户项目或快照数据库。
@@ -813,8 +822,8 @@ docker exec -it Overleaf-DB bash
 mongosh sharelatex
 ```
 
-> - 第一行进入 `Overleaf-DB` 容器的交互式 Shell；
-> - 第二行启动 `mongosh`，并连接到 `sharelatex` 数据库（Overleaf 默认使用的库）。
+第一行进入 `Overleaf-DB` 容器的交互式 Shell；
+第二行启动 `mongosh`，并连接到 `sharelatex` 数据库（Overleaf 默认使用的库）。
 
 - **提升/取消管理员**
 
@@ -845,7 +854,7 @@ db.users.find({email:"user1@example.com"}, {email:1, isAdmin:1, deleted:1}).toAr
 在**宿主机**执行：
 
 ```bash
-# 1）准备两个持久化目录
+# 1）准备两个持久化目录（之前已准备过）
 mkdir -p "${HOME}/docker/overleaf/texlive"
 mkdir -p "${HOME}/docker/overleaf/fonts"
 
@@ -1203,7 +1212,7 @@ fc-cache -v | sed -n '1,80p'
 
 ------
 
-### **清单 + 汇总字体报告**
+### 清单 + 汇总字体报告
 
 下面命令生成当前系统可用字体的**汇总报告**
 
@@ -1481,7 +1490,7 @@ journalctl -u cloudflared-quick.service -f
 
 这样就无需手动输入 `docker run`，开机会自动拉起 Quick Tunnel，日志也统一交给 systemd 管理。
 
-# Docker 开机启动与容器自动启动机制说明
+# 附录1 Docker 开机启动与容器自动启动机制说明
 
 ## 查看 Docker 是否启用开机自启
 
@@ -1608,7 +1617,7 @@ restart: always
 容器设置：
 
 ```bash
-restart: "no"
+restart: no
 ```
 
 即使 Docker 启动，容器也不会自动跑，必须：
@@ -1621,171 +1630,396 @@ docker start <container>
 
 ------
 
-# Docker Compose 启动 / 停止指令说明
+# 附录2 秒杀！一键部署overleaf CE
 
-配置文件位置为：
+下面是一键部署脚本，一条龙完成拉镜像，部署，持久化字体，临时公网访问。
 
-```bash
-${HOME}/docker/overleaf/docker-compose.yml
-```
-
-请先进入该目录再执行下面的命令：
+在执行前请先确认：**Docker / docker compose 已安装并可用**
 
 ```bash
-cd "${HOME}/docker/overleaf"
+#!/usr/bin/env bash
+# ======================================================
+# Overleaf Community Edition 一键部署脚本（单机版）
+# - 拉取镜像：Overleaf / MongoDB / Redis / Cloudflared
+# - 创建并持久化：项目数据、Mongo、TeX Live、字体、Redis
+# - 首次启动后复制容器内 TeX Live / 字体到宿主机
+# - 重新挂载持久化目录并按新配置启动
+# - 可选：后台升级 TeX Live & 安装多语种字体
+# - 可选：通过 Cloudflare Tunnel 暴露临时公网访问链接
+#
+# 适用环境：
+# - 已安装 Docker、docker compose（插件或老版 docker-compose）
+# - Linux（Debian/Ubuntu 系列优先），宿主机具备 sudo 权限
+# ======================================================
+
+set -e
+
+# =========================================
+# 0. 环境检查 & sudo 预热
+# =========================================
+
+# 0.1 检查 docker 是否存在
+if ! command -v docker >/dev/null 2>&1; then
+  echo "错误：未找到 docker 命令，请先安装 Docker 再运行本脚本。" >&2
+  exit 1
+fi
+
+# 0.2 提示 docker compose 状态（仅提示，不强制退出）
+if ! docker compose version >/dev/null 2>&1; then
+  echo "提示：未检测到 'docker compose' 子命令。"
+  echo "      如你使用的是旧版 'docker-compose'，请将脚本中的"
+  echo "      'docker compose ...' 手工替换为 'docker-compose ...' 后再执行。"
+fi
+
+# 0.3 如果不是 root，预热 sudo
+if [ "$(id -u)" -ne 0 ]; then
+  echo "需要使用 sudo 执行部分操作（如 chown / chmod），正在预热 sudo..."
+  sudo -v || { echo "获取 sudo 权限失败，请检查 sudo 配置。"; exit 1; }
+fi
+
+# 0.4 统一根目录：可提前在外部 export OVERLEAF_ROOT 覆盖
+: "${OVERLEAF_ROOT:=${HOME}/docker/overleaf}"
+echo "Overleaf 根目录：${OVERLEAF_ROOT}"
+# =========================================
+# 1. 拉取并重打标签：Overleaf / MongoDB / Redis 镜像
+# =========================================
+
+# 1.1 拉取 Overleaf（sharelatex）镜像，并重打标签为 sharelatex/sharelatex:latest
+docker pull docker-0.unsee.tech/sharelatex/sharelatex:latest
+docker tag  docker-0.unsee.tech/sharelatex/sharelatex:latest  sharelatex/sharelatex:latest
+
+# 1.2 拉取 MongoDB 6.0 并重打标签为 mongo:6.0
+docker pull docker.m.daocloud.io/library/mongo:6.0
+docker tag  docker.m.daocloud.io/library/mongo:6.0  mongo:6.0
+
+# 1.3 拉取 Redis 7(alpine) 并重打标签为 redis:7-alpine
+docker pull docker.m.daocloud.io/library/redis:7-alpine
+docker tag  docker.m.daocloud.io/library/redis:7-alpine  redis:7-alpine
+
+# =========================================
+# 2. 创建 Overleaf 根目录与子目录，并设置权限
+# =========================================
+
+
+# 2.1 创建数据目录：项目数据、数据库、字体、TeX Live、Redis
+mkdir -p "${OVERLEAF_ROOT}"/{data,db,fonts,texlive,redis}
+
+# 2.2 基本权限设置
+# Overleaf 容器内通常以 UID:GID = 1000:1000 运行，这里先将宿主机目录拥有者设为该用户
+sudo chown -R 1000:1000 "${OVERLEAF_ROOT}"
+# 目录权限 775：拥有者和同组可读写执行，其他用户可读执行
+sudo chmod -R 775 "${OVERLEAF_ROOT}"
+
+# =========================================
+# 3. 第一次生成 docker-compose.yml（不挂载 texlive / fonts）并启动
+#    目的：先用容器自带的 TeX Live / 字体跑起来，再完整拷贝到宿主机
+# =========================================
+cat > "${HOME}/docker/overleaf/docker-compose.yml" << 'EOF'
+
+services:
+  mongo:
+    image: mongo:6.0                 # 本地镜像
+    container_name: Overleaf-DB
+    restart: no
+    command: ["--replSet","overleaf","--bind_ip_all"]
+    volumes:
+      - ${HOME}/docker/overleaf/db:/data/db:rw
+    healthcheck:
+      test: ["CMD-SHELL","echo 'db.runCommand({ping:1}).ok' | mongosh --quiet mongodb://localhost:27017/admin || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 18
+      start_period: 120s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  mongoinit:
+    image: mongo:6.0                 # 本地镜像
+    container_name: mongo-init
+    restart: no
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint:
+      - mongosh
+      - --host
+      - mongo:27017
+      - --eval
+      - >
+        try{
+          rs.initiate({ _id: "overleaf", members: [ { _id: 0, host: "mongo:27017" } ] });
+        }catch(e){ print("rs.initiate may already be done:", e); }
+
+  redis:
+    image: redis:7-alpine            # 本地镜像
+    container_name: Overleaf-REDIS
+    restart: no
+    command: ["redis-server","--save","","--appendonly","no"]
+    volumes:
+      - ${HOME}/docker/overleaf/redis:/data:rw
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  overleaf:
+    image: sharelatex/sharelatex:latest   # 本地镜像（若你用 latest 已重打标签）
+    container_name: Overleaf
+    restart: "on-failure:5"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mongoinit:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    ports:
+      - "7643:80"                      # 反代时指向 127.0.0.1:7643
+    volumes:
+      - ${HOME}/docker/overleaf/data:/var/lib/overleaf:rw
+      # ↓↓ 先不要挂，等复制完再启用 ↓↓
+      # - ${HOME}/docker/overleaf/texlive:/usr/local/texlive:rw
+      # - ${HOME}/docker/overleaf/fonts:/usr/share/fonts:rw   # 字体持久化（稍后开启）
+    environment:
+      OVERLEAF_APP_NAME: "Overleaf Community Edition"
+      OVERLEAF_MONGO_URL: "mongodb://mongo:27017/sharelatex?replicaSet=overleaf"
+      OVERLEAF_REDIS_HOST: "redis"
+      ENABLED_LINKED_FILE_TYPES: "project_file,project_output_file"
+      ENABLE_CONVERSIONS: "true"
+      EMAIL_CONFIRMATION_DISABLED: "true"   # 暂无 SMTP 时务必开启
+      OVERLEAF_ALLOW_EMAIL_SIGNUP: "true"   #
+      OVERLEAF_ALLOW_ANONYMOUS_READ_AND_WRITE_SHARING: "true"    # 开放匿名分享
+      OVERLEAF_CONTACT_EMAIL: "admin@example.com"
+      OVERLEAF_SITE_URL: "http://localhost:7643"
+      OVERLEAF_NAV_TITLE: "Overleaf on Home"
+      OVERLEAF_PROXY_LEARN: "true"
+      OVERLEAF_MAX_UPLOAD_SIZE: "150MB"
+      TEXMFVAR: "/var/lib/sharelatex/tmp/texmf-var"
+      TZ: "Asia/Macau"
+    healthcheck:
+      test: ["CMD-SHELL","curl -fsS http://localhost:80/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+            
+EOF
+
+# 进入目录并启动（第一次）
+cd "${OVERLEAF_ROOT}"
+docker compose -f docker-compose.yml up -d
+# 如使用旧版 docker-compose，可替换为：
+# docker-compose -f docker-compose.yml up -d
+
+# =========================================
+# 4. 从 Overleaf 容器中拷贝 TeX Live / 字体到宿主机
+# =========================================
+
+# 4.1 拷贝 TeX Live 完整目录到宿主机（用于后续持久化与自定义包）
+sudo docker cp Overleaf:/usr/local/texlive/. "${OVERLEAF_ROOT}/texlive"
+
+# 4.2 拷贝系统字体目录到宿主机（用于自定义 / 持久化字体）
+sudo docker cp Overleaf:/usr/share/fonts/. "${OVERLEAF_ROOT}/fonts"
+
+# =========================================
+# 5. 用挂载后的路径重新生成 docker-compose.yml，并按新配置重启
+# =========================================
+
+cat > "${HOME}/docker/overleaf/docker-compose.yml" << 'EOF'
+
+services:
+  mongo:
+    image: mongo:6.0                 # 本地镜像
+    container_name: Overleaf-DB
+    restart: no
+    command: ["--replSet","overleaf","--bind_ip_all"]
+    volumes:
+      - ${HOME}/docker/overleaf/db:/data/db:rw
+    healthcheck:
+      test: ["CMD-SHELL","echo 'db.runCommand({ping:1}).ok' | mongosh --quiet mongodb://localhost:27017/admin || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 18
+      start_period: 120s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  mongoinit:
+    image: mongo:6.0                 # 本地镜像
+    container_name: mongo-init
+    restart: no
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint:
+      - mongosh
+      - --host
+      - mongo:27017
+      - --eval
+      - >
+        try{
+          rs.initiate({ _id: "overleaf", members: [ { _id: 0, host: "mongo:27017" } ] });
+        }catch(e){ print("rs.initiate may already be done:", e); }
+
+  redis:
+    image: redis:7-alpine            # 本地镜像
+    container_name: Overleaf-REDIS
+    restart: no
+    command: ["redis-server","--save","","--appendonly","no"]
+    volumes:
+      - ${HOME}/docker/overleaf/redis:/data:rw
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  overleaf:
+    image: sharelatex/sharelatex:latest   # 本地镜像（若你用 latest 已重打标签）
+    container_name: Overleaf
+    restart: "on-failure:5"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mongoinit:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    ports:
+      - "7643:80"                      # 反代时指向 127.0.0.1:7643
+    volumes:
+      - ${HOME}/docker/overleaf/data:/var/lib/overleaf:rw
+      - ${HOME}/docker/overleaf/texlive:/usr/local/texlive:rw
+      - ${HOME}/docker/overleaf/fonts:/usr/share/fonts:rw   
+    environment:
+      OVERLEAF_APP_NAME: "Overleaf Community Edition"
+      OVERLEAF_MONGO_URL: "mongodb://mongo:27017/sharelatex?replicaSet=overleaf"
+      OVERLEAF_REDIS_HOST: "redis"
+      ENABLED_LINKED_FILE_TYPES: "project_file,project_output_file"
+      ENABLE_CONVERSIONS: "true"
+      EMAIL_CONFIRMATION_DISABLED: "true"   # 暂无 SMTP 时务必开启
+      OVERLEAF_ALLOW_EMAIL_SIGNUP: "true"   #
+      OVERLEAF_ALLOW_ANONYMOUS_READ_AND_WRITE_SHARING: "true"    # 开放匿名分享
+      OVERLEAF_CONTACT_EMAIL: "admin@example.com"
+      OVERLEAF_SITE_URL: "http://localhost:7643"
+      OVERLEAF_NAV_TITLE: "Overleaf on Home"
+      OVERLEAF_PROXY_LEARN: "true"
+      OVERLEAF_MAX_UPLOAD_SIZE: "150MB"
+      TEXMFVAR: "/var/lib/sharelatex/tmp/texmf-var"
+      TZ: "Asia/Macau"
+    healthcheck:
+      test: ["CMD-SHELL","curl -fsS http://localhost:80/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+            
+EOF
+
+# 按新配置重启（此时已挂载 TeX Live / 字体）
+docker compose -f docker-compose.yml up -d
+
+
+# =========================================
+# 6.（可选）后台升级 TeX Live 并安装字体（非交互）
+#    命令会在 Overleaf 容器内后台执行，终端不会被长时间占用
+# =========================================
+
+docker exec -d Overleaf bash -lc '
+set -e
+
+# 1) 升级 tlmgr 并切换到清华镜像
+cd /usr/local/texlive || true
+wget http://mirror.ctan.org/systems/texlive/tlnet/update-tlmgr-latest.sh
+sh update-tlmgr-latest.sh -- --upgrade
+tlmgr option repository https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/texlive/tlnet/
+tlmgr update --self --all
+
+# 2) 在容器内部后台安装完整 TeX Live（scheme-full），不阻塞后续步骤
+tlmgr install scheme-full &
+
+# 3) 安装常用字体（开源字体 + 微软核心字体）
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  fonts-noto fonts-noto-extra fonts-noto-unhinted \
+  fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji \
+  fonts-dejavu fonts-dejavu-extra fonts-liberation2 fonts-freefont-ttf \
+  fonts-wqy-zenhei fonts-wqy-microhei \
+  fonts-arphic-uming fonts-arphic-ukai \
+  fonts-ipaexfont fonts-vlgothic \
+  fonts-nanum fonts-nanum-coding \
+  fonts-thai-tlwg fonts-khmeros fonts-lao \
+  fonts-sil-abyssinica fonts-sil-padauk \
+  fonts-kacst-one fonts-kacst \
+  fonts-stix fonts-stix-two \
+  fonts-lmodern \
+  fonts-roboto fonts-roboto-unhinted \
+  software-properties-common debconf-utils
+
+add-apt-repository -y multiverse
+apt-get update
+echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  ttf-mscorefonts-installer
+
+# 4) 刷新字体缓存
+fc-cache -f -v
+luaotfload-tool -u
+'
+
+# =========================================
+# 7. 建立临时公网访问（Cloudflare Tunnel）
+#    - 使用 cloudflared 暴露本地 7643 端口
+#    - 自动输出一个临时的 trycloudflare 链接
+# =========================================
+
+# 7.1 拉取并重打标签（使用国内镜像源）
+docker pull m.daocloud.io/docker.io/cloudflare/cloudflared:latest
+docker tag  m.daocloud.io/docker.io/cloudflare/cloudflared:latest cloudflare/cloudflared:latest
+
+# 7.2 启动临时 Cloudflare Tunnel 容器（指向本机 7643 端口）
+docker run -d --name cftmp --restart unless-stopped \
+  --network host \
+  cloudflare/cloudflared:latest \
+  tunnel --no-autoupdate --url http://127.0.0.1:7643
+
+# 7.3 从日志中自动提取临时公网访问链接
+CF_CONTAINER=cftmp sh -c '
+  U=$(whoami); D="docker"; [ "$U" != "root" ] && D="sudo docker";
+
+  echo "等待 Cloudflare Tunnel 分配临时访问地址..."
+
+  # 最多等 ~60 秒，每 2 秒检查一次日志
+  for i in $(seq 1 30); do
+    URL=$($D logs "$CF_CONTAINER" 2>&1 | grep -Eo "https://[a-z0-9-]+\.trycloudflare\.com" | tail -1)
+    [ -n "$URL" ] && break
+    sleep 2
+  done
+
+  if [ -n "$URL" ]; then
+    echo
+    echo "===== Overleaf 临时公网访问地址 ====="
+    echo "$URL"
+    echo "===================================="
+  else
+    echo "未在预期时间内从日志中获取到 trycloudflare 链接，请稍后手动执行："
+    echo "  $D logs $CF_CONTAINER | grep -E \"https://[a-z0-9-]+\\.trycloudflare\\.com\""
+    exit 1
+  fi
+'
 ```
-
-------
-
-### 首次启动 / 创建容器
-
-### 创建并在后台启动所有服务
-
-```bash
-docker compose up -d
-```
-
-含义：
-
-- **up**：根据 `docker-compose.yml` 创建并启动容器、网络、卷等资源；
-- `-d`：在后台运行（detached 模式），终端不会被占用。
-
-**在第一次部署 Overleaf 时，必须执行一次这个命令。**
-
-------
-
-### 只启动某几个服务
-
-例如：只启动 `mongo` 和 `redis`：
-
-```bash
-docker compose up -d mongo redis
-```
-
-只启动 `overleaf`：
-
-```bash
-docker compose up -d overleaf
-```
-
-------
-
-## 停止运行中的容器
-
-###  停止所有服务（保留容器）
-
-```bash
-docker compose stop
-```
-
-效果：
-
-- 停止当前 `project` 下所有容器；
-- 容器还在，只是从「运行中」变成「已停止」，可随时再启动。
-
-### 停止指定服务
-
-```bash
-docker compose stop overleaf
-```
-
-只停止 `overleaf` 容器，其他服务不受影响。
-
-------
-
-## 再次启动已创建的容器
-
-> 前提：容器已经被 `docker compose up` 创建过一次。
-
-### 启动所有服务
-
-```bash
-docker compose start
-```
-
-让之前「已停止」的容器重新运行。
-
-### 启动指定服务
-
-```bash
-docker compose start overleaf
-```
-
-只启动 `overleaf` 容器（如果你之前 `stop` 过它）。
-
-------
-
-## 重启容器
-
-### 重启所有服务
-
-```bash
-docker compose restart
-```
-
-### 重启指定服务
-
-```bash
-docker compose restart overleaf
-```
-
-作用相当于：先 `stop` 再 `start`，常用于：
-
-- 服务卡死；
-- 修改挂载目录里的配置文件后，需要应用重启生效等。
-
-> ⚠️ **注意：如果改动了 `docker-compose.yml` 本身（如 image/env/ports/volumes 等），
->  仅 `restart` 不会应用新配置，需要用：**
->
-> ```bash
-> docker compose up -d
-> ```
->
-> Compose 会自动对比配置，只重建有变化的服务容器。
-
-------
-
-## 删除容器 / 网络（彻底清场）
-
-> ⚠️ **谨慎使用**，因为会把容器删掉（挂载到宿主机的目录不会删）。
-
-### 停止并删除所有服务容器、网络等
-
-```bash
-docker compose down
-```
-
-效果：
-
-- 停止所有容器；
-- 删除容器和网络；
-- 卷（volumes）和你挂载的宿主目录不会被删除。
-
-### 连同匿名卷一起删除
-
-```bash
-docker compose down -v
-```
-
-会把 compose 创建的相关匿名卷一并删除，适用于「完全重装」的情况。
-
-------
-
-## 查看当前状态 / 日志
-
-### 查看当前项目下所有容器状态
-
-```bash
-docker compose ps
-```
-
-### 查看某个服务的日志（实时）
-
-```bash
-docker compose logs -f overleaf
-```
-
-- `-f`：实时滚动输出日志（类似 `tail -f`）
-
-------
-

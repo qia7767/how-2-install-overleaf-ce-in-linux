@@ -347,7 +347,7 @@ docker pull redis:7-alpine
 - **sharelatex**
 
 >目的：从镜像站拉取  `sharelatex/sharelatex:latest`，随后本地 retag 为 `sharelatex/sharelatex:latest`。
-> 说明：下面把 **A/B**任选其一执行。
+>下面**A/B**任选其一执行。
 
 ```bash
 # =============================
